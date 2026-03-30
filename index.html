@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#FF7043">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="FlashCards">
+<meta name="description" content="Learn sight words and math with fun flash cards!">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<title>Flash Card Fun!</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky: #4FC3F7;
+    --coral: #FF7043;
+    --mint: #66BB6A;
+    --sun: #FFCA28;
+    --lavender: #AB47BC;
+    --bg: #FFF8F0;
+    --card-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    height: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+    position: relative;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /* ── INSTALL BANNER ── */
+  #installBanner {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: linear-gradient(135deg, #1A237E, #283593);
+    color: white;
+    padding: 14px 20px calc(14px + var(--safe-bottom));
+    z-index: 200;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.2);
+  }
+  #installBanner.visible { display: flex; }
+  .install-icon { font-size: 2rem; flex-shrink: 0; }
+  .install-text { flex: 1; }
+  .install-text strong { display: block; font-size: 0.95rem; }
+  .install-text span { font-size: 0.78rem; opacity: 0.8; }
+  .install-btn {
+    background: var(--sun); color: #5D4037;
+    border: none; cursor: pointer;
+    font-family: 'Fredoka One', cursive;
+    font-size: 0.9rem; padding: 10px 18px;
+    border-radius: 20px; flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .install-dismiss {
+    background: none; border: none; color: white;
+    font-size: 1.3rem; cursor: pointer; opacity: 0.7;
+    padding: 4px; flex-shrink: 0;
+  }
+
+  /* ── OFFLINE BADGE ── */
+  #offlineBadge {
+    display: none;
+    position: fixed; top: calc(10px + var(--safe-top)); right: 10px;
+    background: #424242; color: white;
+    font-size: 0.7rem; font-weight: 800;
+    padding: 4px 10px; border-radius: 20px;
+    z-index: 150;
+  }
+  #offlineBadge.show { display: block; }
+
+  /* Bubble background */
+  .bubbles { position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+  .bubble { position: absolute; border-radius: 50%; opacity: 0.12; animation: floatUp linear infinite; }
+  @keyframes floatUp {
+    0%   { transform: translateY(100vh) scale(0.8); opacity: 0.15; }
+    100% { transform: translateY(-120px) scale(1.1); opacity: 0; }
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; min-height: -webkit-fill-available; padding: 20px; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  /* ── HOME ── */
+  .home-title {
+    font-family: 'Fredoka One', cursive;
+    font-size: clamp(2.8rem, 12vw, 4.5rem);
+    color: var(--coral); text-align: center; line-height: 1.1;
+    text-shadow: 3px 3px 0 #fff, 5px 5px 0 rgba(255,112,67,0.2);
+    animation: bounceIn 0.6s cubic-bezier(.36,.07,.19,.97);
+  }
+  .home-subtitle { font-size: 1.1rem; font-weight: 700; color: #888; margin: 8px 0 32px; letter-spacing: 0.05em; }
+  .star-row { display: flex; gap: 6px; font-size: 1.8rem; margin-bottom: 36px; animation: wiggle 2s ease-in-out infinite; }
+  @keyframes wiggle { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+
+  .mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: 100%; max-width: 360px; }
+  .mode-btn {
+    border: none; cursor: pointer; border-radius: 22px; padding: 22px 12px;
+    font-family: 'Fredoka One', cursive; font-size: 1.15rem; color: white;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    transition: transform 0.15s, box-shadow 0.15s;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.15);
+  }
+  .mode-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  .mode-btn .icon { font-size: 2.4rem; }
+  .mode-btn.words { background: linear-gradient(145deg, #FF7043, #FF5722); }
+  .mode-btn.math  { background: linear-gradient(145deg, #42A5F5, #1E88E5); }
+  .mode-btn.mix   { background: linear-gradient(145deg, #AB47BC, #8E24AA); grid-column: span 2; flex-direction: row; justify-content: center; gap: 14px; }
+  .mode-btn.mix .icon { font-size: 2rem; }
+
+  /* Best score strip */
+  .best-scores {
+    display: flex; gap: 12px; margin-top: 24px;
+    flex-wrap: wrap; justify-content: center;
+  }
+  .best-chip {
+    background: white; border-radius: 14px; padding: 8px 14px;
+    font-size: 0.78rem; font-weight: 800; color: #666;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .best-chip .chip-score { color: var(--coral); font-family: 'Fredoka One', cursive; font-size: 1rem; }
+
+  /* ── GAME ── */
+  .game-header {
+    width: 100%; max-width: 420px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .back-btn {
+    background: white; border: none; cursor: pointer;
+    width: 44px; height: 44px; border-radius: 50%;
+    font-size: 1.3rem; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.12); transition: transform 0.15s;
+  }
+  .back-btn:active { transform: scale(0.9); }
+  .progress-wrap { flex: 1; margin: 0 12px; background: #e0e0e0; border-radius: 20px; height: 12px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 20px; background: linear-gradient(90deg, var(--mint), var(--sky)); transition: width 0.4s ease; }
+  .score-chip { background: var(--sun); color: #5D4037; font-family: 'Fredoka One', cursive; font-size: 1rem; padding: 6px 14px; border-radius: 20px; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+
+  /* CARD */
+  .card-area { perspective: 1000px; width: 100%; max-width: 380px; margin-bottom: 24px; }
+  .card {
+    width: 100%; aspect-ratio: 1.6/1;
+    position: relative; transform-style: preserve-3d;
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1); cursor: pointer;
+  }
+  .card.flipped { transform: rotateY(180deg); }
+  .card-face {
+    position: absolute; inset: 0; border-radius: 28px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    backface-visibility: hidden; box-shadow: var(--card-shadow); padding: 20px;
+  }
+  .card-front { background: white; border: 4px solid transparent; }
+  .card-back { background: linear-gradient(135deg, #E3F2FD, #EDE7F6); transform: rotateY(180deg); border: 4px solid #B39DDB; }
+  .card-type-badge {
+    position: absolute; top: 14px; left: 14px;
+    font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 4px 10px; border-radius: 20px; color: white;
+  }
+  .badge-word { background: var(--coral); }
+  .badge-math { background: var(--sky); }
+  .card-main-text { font-family: 'Fredoka One', cursive; font-size: clamp(2.8rem, 14vw, 5rem); text-align: center; line-height: 1; color: #2c2c2c; }
+  .card-hint { font-size: 0.85rem; font-weight: 700; color: #bbb; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+  .card-back .card-main-text { color: #4527A0; font-size: clamp(2.4rem, 12vw, 4.4rem); }
+  .card-back .card-sub { font-size: 0.95rem; color: #7E57C2; font-weight: 700; margin-top: 8px; }
+
+  /* Answer buttons (math multiple choice) */
+  .answer-grid { width: 100%; max-width: 380px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ans-btn {
+    border: none; cursor: pointer; border-radius: 18px; padding: 18px 10px;
+    font-family: 'Fredoka One', cursive; font-size: clamp(1rem, 4.5vw, 1.3rem); color: white;
+    background: linear-gradient(145deg, #78909C, #546E7A);
+    box-shadow: 0 5px 0 rgba(0,0,0,0.15);
+    transition: transform 0.12s, box-shadow 0.12s, background 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .ans-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  .ans-btn.correct { background: linear-gradient(145deg, #66BB6A, #43A047) !important; box-shadow: 0 5px 0 #2E7D32; }
+  .ans-btn.wrong   { background: linear-gradient(145deg, #EF5350, #E53935) !important; box-shadow: 0 5px 0 #B71C1C; }
+
+  /* Proctor buttons (sight words mode) */
+  .proctor-area {
+    width: 100%; max-width: 380px;
+    display: none; flex-direction: column; gap: 12px; align-items: center;
+  }
+  .proctor-area.visible { display: flex; }
+
+  .proctor-hint {
+    font-size: 0.82rem; font-weight: 800; color: #bbb;
+    text-transform: uppercase; letter-spacing: 0.07em;
+    margin-bottom: 2px;
+  }
+
+  .proctor-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; width: 100%; }
+
+  .proctor-btn {
+    border: none; cursor: pointer; border-radius: 18px; padding: 20px 10px;
+    font-family: 'Fredoka One', cursive; font-size: 1.3rem; color: white;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .proctor-btn:active { transform: translateY(4px); }
+  .proctor-btn.got-it {
+    background: linear-gradient(145deg, #66BB6A, #43A047);
+    box-shadow: 0 5px 0 #2E7D32;
+  }
+  .proctor-btn.got-it:active { box-shadow: 0 1px 0 #2E7D32; }
+  .proctor-btn.missed {
+    background: linear-gradient(145deg, #EF5350, #E53935);
+    box-shadow: 0 5px 0 #B71C1C;
+  }
+  .proctor-btn.missed:active { box-shadow: 0 1px 0 #B71C1C; }
+
+  /* Tap-to-reveal overlay shown before flip in word mode */
+  .tap-reveal-prompt {
+    width: 100%; max-width: 380px;
+    text-align: center; padding: 14px;
+    font-size: 0.9rem; font-weight: 800; color: #ccc;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── RESULT ── */
+  .result-screen { background: linear-gradient(160deg, #FFF8F0 0%, #E8F5E9 100%); }
+  .result-emoji { font-size: 5rem; animation: bounceIn 0.5s; margin-bottom: 12px; }
+  @keyframes bounceIn {
+    0%   { transform: scale(0.4) rotate(-10deg); opacity: 0; }
+    60%  { transform: scale(1.15) rotate(4deg); opacity: 1; }
+    80%  { transform: scale(0.95); }
+    100% { transform: scale(1) rotate(0deg); }
+  }
+  .result-title { font-family: 'Fredoka One', cursive; font-size: clamp(2rem, 9vw, 3rem); color: var(--coral); text-align: center; }
+  .result-score { font-family: 'Fredoka One', cursive; font-size: clamp(3.5rem, 15vw, 6rem); color: var(--mint); line-height: 1; margin: 10px 0; }
+  .result-sub { font-size: 1rem; font-weight: 700; color: #999; margin-bottom: 10px; }
+  .result-best { font-size: 0.85rem; font-weight: 800; color: var(--coral); margin-bottom: 18px; min-height: 1.2em; }
+  .stars-display { font-size: 2.5rem; letter-spacing: 4px; margin-bottom: 28px; }
+  .play-again-btn {
+    background: linear-gradient(145deg, var(--coral), #FF5722); color: white;
+    border: none; cursor: pointer; font-family: 'Fredoka One', cursive;
+    font-size: 1.4rem; padding: 18px 48px; border-radius: 50px;
+    box-shadow: 0 6px 0 #BF360C, var(--card-shadow);
+    transition: transform 0.15s, box-shadow 0.15s; margin-bottom: 14px;
+  }
+  .play-again-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #BF360C; }
+  .home-link { font-size: 0.9rem; font-weight: 700; color: #aaa; text-decoration: none; padding: 10px; cursor: pointer; border: none; background: none; }
+
+  /* Confetti */
+  .confetti-piece {
+    position: fixed; width: 10px; height: 10px; border-radius: 2px;
+    animation: confettiFall linear forwards; pointer-events: none; z-index: 999;
+  }
+  @keyframes confettiFall {
+    0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: calc(30px + var(--safe-bottom)); left: 50%; transform: translateX(-50%);
+    background: #212121; color: white; font-family: 'Fredoka One', cursive;
+    font-size: 1.1rem; padding: 12px 28px; border-radius: 30px;
+    opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 100; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div class="bubbles" id="bubbles"></div>
+<div class="toast" id="toast"></div>
+<div id="offlineBadge">✈️ Offline</div>
+
+<!-- ── INSTALL BANNER ── -->
+<div id="installBanner">
+  <span class="install-icon">📱</span>
+  <div class="install-text">
+    <strong>Add to Home Screen</strong>
+    <span>Play offline like a real app!</span>
+  </div>
+  <button class="install-btn" id="installBtn">Install</button>
+  <button class="install-dismiss" id="dismissBtn">✕</button>
+</div>
+
+<!-- ══ HOME SCREEN ══ -->
+<div class="screen active" id="homeScreen">
+  <div class="star-row">⭐🌟✨🌟⭐</div>
+  <div class="home-title">Flash Card<br>Fun!</div>
+  <div class="home-subtitle">TAP · LEARN · SHINE</div>
+
+  <div class="mode-grid">
+    <button class="mode-btn words" onclick="startGame('words')">
+      <span class="icon">📖</span>Sight Words
+    </button>
+    <button class="mode-btn math" onclick="startGame('math')">
+      <span class="icon">🔢</span>Math
+    </button>
+    <button class="mode-btn mix" onclick="startGame('mix')">
+      <span class="icon">⚡</span>Mix It Up!<span class="icon">🎲</span>
+    </button>
+  </div>
+
+  <div class="best-scores" id="bestScores"></div>
+</div>
+
+<!-- ══ GAME SCREEN ══ -->
+<div class="screen" id="gameScreen">
+  <div class="game-header">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
+    <div class="score-chip">⭐ <span id="scoreDisplay">0</span></div>
+  </div>
+
+  <div class="card-area">
+    <div class="card" id="flashCard" onclick="flipCard()">
+      <div class="card-face card-front">
+        <span class="card-type-badge" id="cardBadge">Word</span>
+        <div class="card-main-text" id="cardQuestion">the</div>
+        <div class="card-hint">👆 Tap to reveal</div>
+      </div>
+      <div class="card-face card-back">
+        <div class="card-main-text" id="cardAnswer">the</div>
+        <div class="card-sub" id="cardSub"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="answer-grid" id="answerGrid"></div>
+
+  <!-- Proctor mode (sight words): shown after card flip -->
+  <div class="proctor-area" id="proctorArea">
+    <div class="proctor-hint">Did they get it?</div>
+    <div class="proctor-btns">
+      <button class="proctor-btn got-it"  onclick="proctorMark(true)">✅ Got it!</button>
+      <button class="proctor-btn missed"  onclick="proctorMark(false)">❌ Missed it</button>
+    </div>
+  </div>
+
+  <!-- Before flip in word mode -->
+  <div class="tap-reveal-prompt" id="tapRevealPrompt">👆 Tap the card to reveal</div>
+</div>
+
+<!-- ══ RESULT SCREEN ══ -->
+<div class="screen result-screen" id="resultScreen">
+  <div class="result-emoji" id="resultEmoji">🎉</div>
+  <div class="result-title" id="resultTitle">Amazing!</div>
+  <div class="result-score" id="resultScore">10/10</div>
+  <div class="result-sub" id="resultSub">Perfect score!</div>
+  <div class="result-best" id="resultBest"></div>
+  <div class="stars-display" id="resultStars">⭐⭐⭐</div>
+  <button class="play-again-btn" id="playAgainBtn" onclick="playAgain()">Play Again! 🎮</button>
+  <button class="home-link" onclick="goHome()">Choose a different mode</button>
+</div>
+
+<script>
+// ── SERVICE WORKER ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW error:', err));
+  });
+}
+
+// ── OFFLINE DETECTION ──
+function updateOnlineStatus() {
+  document.getElementById('offlineBadge').classList.toggle('show', !navigator.onLine);
+}
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+
+// ── PWA INSTALL PROMPT ──
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  // Show banner after 3 seconds if not already installed
+  setTimeout(() => {
+    if (!window.matchMedia('(display-mode: standalone)').matches) {
+      document.getElementById('installBanner').classList.add('visible');
+    }
+  }, 3000);
+});
+
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  const { outcome } = await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.remove('visible');
+});
+
+document.getElementById('dismissBtn').addEventListener('click', () => {
+  document.getElementById('installBanner').classList.remove('visible');
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.remove('visible');
+  showToast('App installed! 🎉');
+});
+
+// ── BEST SCORES (localStorage) ──
+function getBest(mode) {
+  try { return parseInt(localStorage.getItem('best_' + mode) || '0'); } catch { return 0; }
+}
+function setBest(mode, score) {
+  try { localStorage.setItem('best_' + mode, score); } catch {}
+}
+function renderBestScores() {
+  const el = document.getElementById('bestScores');
+  const modes = [
+    { key: 'words', label: '📖 Words' },
+    { key: 'math',  label: '🔢 Math' },
+    { key: 'mix',   label: '⚡ Mix' }
+  ];
+  el.innerHTML = modes.map(m => {
+    const b = getBest(m.key);
+    if (!b) return '';
+    return `<div class="best-chip">${m.label} <span class="chip-score">${b}/10</span> best</div>`;
+  }).join('');
+}
+
+// ── DATA ──
+const SIGHT_WORDS = [
+  {q:"the",a:"the",sub:"Article",type:"word"},
+  {q:"and",a:"and",sub:"Conjunction",type:"word"},
+  {q:"is",a:"is",sub:"Verb",type:"word"},
+  {q:"in",a:"in",sub:"Preposition",type:"word"},
+  {q:"it",a:"it",sub:"Pronoun",type:"word"},
+  {q:"you",a:"you",sub:"Pronoun",type:"word"},
+  {q:"he",a:"he",sub:"Pronoun",type:"word"},
+  {q:"was",a:"was",sub:"Verb",type:"word"},
+  {q:"for",a:"for",sub:"Preposition",type:"word"},
+  {q:"on",a:"on",sub:"Preposition",type:"word"},
+  {q:"are",a:"are",sub:"Verb",type:"word"},
+  {q:"as",a:"as",sub:"Conjunction",type:"word"},
+  {q:"with",a:"with",sub:"Preposition",type:"word"},
+  {q:"his",a:"his",sub:"Pronoun",type:"word"},
+  {q:"they",a:"they",sub:"Pronoun",type:"word"},
+  {q:"at",a:"at",sub:"Preposition",type:"word"},
+  {q:"be",a:"be",sub:"Verb",type:"word"},
+  {q:"this",a:"this",sub:"Determiner",type:"word"},
+  {q:"from",a:"from",sub:"Preposition",type:"word"},
+  {q:"or",a:"or",sub:"Conjunction",type:"word"},
+  {q:"have",a:"have",sub:"Verb",type:"word"},
+  {q:"an",a:"an",sub:"Article",type:"word"},
+  {q:"had",a:"had",sub:"Verb",type:"word"},
+  {q:"her",a:"her",sub:"Pronoun",type:"word"},
+  {q:"she",a:"she",sub:"Pronoun",type:"word"},
+  {q:"do",a:"do",sub:"Verb",type:"word"},
+  {q:"how",a:"how",sub:"Adverb",type:"word"},
+  {q:"their",a:"their",sub:"Pronoun",type:"word"},
+  {q:"if",a:"if",sub:"Conjunction",type:"word"},
+  {q:"will",a:"will",sub:"Auxiliary verb",type:"word"},
+];
+
+function makeMath() {
+  const cards = [];
+  for (let a = 0; a <= 10; a++)
+    for (let b = 0; b <= 10-a; b++)
+      cards.push({q:`${a} + ${b}`,a:`${a+b}`,sub:`${a} plus ${b}`,type:"math"});
+  for (let a = 1; a <= 10; a++)
+    for (let b = 0; b <= a; b++)
+      cards.push({q:`${a} − ${b}`,a:`${a-b}`,sub:`${a} minus ${b}`,type:"math"});
+  return cards;
+}
+const MATH_CARDS = makeMath();
+
+// ── STATE ──
+let deck=[], index=0, score=0, currentMode='mix', flipped=false, answered=false;
+
+function buildDeck(mode) {
+  let pool = mode==='words' ? [...SIGHT_WORDS] : mode==='math' ? [...MATH_CARDS] : [...SIGHT_WORDS,...MATH_CARDS];
+  pool.sort(() => Math.random()-0.5);
+  return pool.slice(0,10);
+}
+
+function startGame(mode) {
+  currentMode=mode; deck=buildDeck(mode);
+  index=0; score=0; flipped=false; answered=false;
+  showScreen('gameScreen');
+  loadCard();
+}
+
+function isWordCard() { return deck[index] && deck[index].type === 'word'; }
+
+function loadCard() {
+  if (index >= deck.length) { showResult(); return; }
+  const card = deck[index];
+  flipped=false; answered=false;
+
+  document.getElementById('flashCard').classList.remove('flipped');
+  document.getElementById('cardQuestion').textContent = card.q;
+  document.getElementById('cardAnswer').textContent = card.a;
+  document.getElementById('cardSub').textContent = card.sub;
+
+  const badge = document.getElementById('cardBadge');
+  if (card.type==='math') { badge.textContent='🔢 Math'; badge.className='card-type-badge badge-math'; }
+  else                    { badge.textContent='📖 Word'; badge.className='card-type-badge badge-word'; }
+
+  document.getElementById('progressBar').style.width = `${(index/deck.length)*100}%`;
+  document.getElementById('scoreDisplay').textContent = score;
+
+  // Show correct UI for mode
+  const wordMode = isWordCard();
+  document.getElementById('answerGrid').style.display      = wordMode ? 'none' : '';
+  document.getElementById('proctorArea').classList.remove('visible');
+  document.getElementById('tapRevealPrompt').style.display = wordMode ? 'block' : 'none';
+
+  if (!wordMode) buildAnswers(card);
+}
+
+function buildAnswers(card) {
+  const grid = document.getElementById('answerGrid');
+  grid.innerHTML = '';
+  const correct = parseInt(card.a), pool = new Set();
+  while (pool.size < 3) {
+    let off = Math.floor(Math.random()*5)+1;
+    let w = correct + (Math.random()<0.5 ? off : -off);
+    if (w>=0 && w!==correct) pool.add(w.toString());
+  }
+  const choices = [card.a,...pool].sort(() => Math.random()-0.5);
+  choices.forEach(choice => {
+    const btn = document.createElement('button');
+    btn.className='ans-btn'; btn.textContent=choice;
+    btn.onclick = () => selectAnswer(btn, choice, card.a);
+    grid.appendChild(btn);
+  });
+}
+
+function flipCard() {
+  if (answered) return;
+  if (isWordCard()) {
+    if (!flipped) {
+      // First tap: reveal the word details, show proctor buttons
+      flipped = true;
+      document.getElementById('flashCard').classList.add('flipped');
+      document.getElementById('tapRevealPrompt').style.display = 'none';
+      document.getElementById('proctorArea').classList.add('visible');
+    }
+    // Do nothing on taps once proctor buttons are shown
+  } else {
+    flipped = !flipped;
+    document.getElementById('flashCard').classList.toggle('flipped', flipped);
+  }
+}
+
+// Proctor marks whether the child got the word right
+function proctorMark(correct) {
+  if (answered) return;
+  answered = true;
+  if (correct) { score++; showToast('Great job! 🎉'); }
+  else         { showToast('Keep practicing! 💪'); }
+  document.getElementById('scoreDisplay').textContent = score;
+  document.getElementById('proctorArea').classList.remove('visible');
+  setTimeout(() => { index++; loadCard(); }, 800);
+}
+
+function selectAnswer(btn, chosen, correct) {
+  if (answered) return;
+  answered = true;
+  document.querySelectorAll('.ans-btn').forEach(b => {
+    b.style.pointerEvents = 'none';
+    if (b.textContent===correct) b.classList.add('correct');
+  });
+  if (chosen===correct) { btn.classList.add('correct'); score++; showToast('Correct! 🎉'); }
+  else                  { btn.classList.add('wrong');   showToast('Not quite! 🤔'); }
+  document.getElementById('flashCard').classList.add('flipped');
+  document.getElementById('scoreDisplay').textContent = score;
+  setTimeout(() => { index++; loadCard(); }, 1200);
+}
+
+// ── RESULT ──
+function showResult() {
+  document.getElementById('progressBar').style.width='100%';
+  const pct = score/deck.length;
+  let emoji, title, sub;
+  if (pct===1)       { emoji='🏆'; title='PERFECT!';      sub='You got every single one!'; }
+  else if (pct>=0.8) { emoji='🎉'; title='Amazing!';       sub='Almost perfect — great work!'; }
+  else if (pct>=0.6) { emoji='😊'; title='Good Job!';      sub='Keep practicing to improve!'; }
+  else if (pct>=0.4) { emoji='💪'; title='Keep Going!';    sub='Practice makes perfect!'; }
+  else               { emoji='📚'; title='Keep Learning!'; sub='Every try makes you smarter!'; }
+
+  const stars = pct===1 ? '⭐⭐⭐' : pct>=0.6 ? '⭐⭐' : '⭐';
+
+  // Best score
+  const prev = getBest(currentMode);
+  let bestMsg = '';
+  if (score > prev) {
+    setBest(currentMode, score);
+    if (prev > 0) bestMsg = `🏅 New best score! (was ${prev}/10)`;
+    else bestMsg = `🏅 First score saved!`;
+  } else if (prev > 0) {
+    bestMsg = `Best: ${prev}/10`;
+  }
+
+  document.getElementById('resultEmoji').textContent = emoji;
+  document.getElementById('resultTitle').textContent = title;
+  document.getElementById('resultScore').textContent = `${score}/${deck.length}`;
+  document.getElementById('resultSub').textContent = sub;
+  document.getElementById('resultBest').textContent = bestMsg;
+  document.getElementById('resultStars').textContent = stars;
+  document.getElementById('playAgainBtn').textContent = `Play Again! ${currentMode==='mix'?'🎲':'🎮'}`;
+
+  showScreen('resultScreen');
+  renderBestScores();
+  if (pct>=0.6) launchConfetti();
+}
+
+function playAgain() { startGame(currentMode); }
+function goHome() { showScreen('homeScreen'); renderBestScores(); }
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ── CONFETTI ──
+function launchConfetti() {
+  const colors = ['#FF7043','#42A5F5','#66BB6A','#FFCA28','#AB47BC','#26C6DA'];
+  for (let i=0; i<60; i++) {
+    const el = document.createElement('div');
+    el.className='confetti-piece';
+    el.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;border-radius:${Math.random()>0.5?'50%':'2px'};animation-duration:${1.5+Math.random()*2}s;animation-delay:${Math.random()*0.8}s;`;
+    document.body.appendChild(el);
+    el.addEventListener('animationend', ()=>el.remove());
+  }
+}
+
+// ── TOAST ──
+let toastTimer;
+function showToast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'), 900);
+}
+
+// ── BUBBLES ──
+(function(){
+  const container=document.getElementById('bubbles');
+  const colors=['#FF7043','#42A5F5','#66BB6A','#FFCA28','#AB47BC'];
+  for (let i=0; i<12; i++) {
+    const b=document.createElement('div'), size=30+Math.random()*80;
+    b.className='bubble';
+    b.style.cssText=`width:${size}px;height:${size}px;left:${Math.random()*100}%;background:${colors[Math.floor(Math.random()*colors.length)]};animation-duration:${8+Math.random()*12}s;animation-delay:${Math.random()*10}s;`;
+    container.appendChild(b);
+  }
+})();
+
+// Init
+renderBestScores();
+</script>
+</body>
+</html>
